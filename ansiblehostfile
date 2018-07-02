@@ -5,23 +5,28 @@ nodes
 #new_nodes
 etcd
 #lb
+#glusterfs_registry
 glusterfs
 
 ## Set variables common for all OSEv3 hosts
 [OSEv3:vars]
 openshift_deployment_type=openshift-enterprise
+
+openshift_master_dynamic_provisioning_enabled=True
+openshift_storage_glusterfs_timeout=900
 #openshift_deployment_type=origin
 #containerized=true
 #openshift_enable_unsupported_configurations=True
 
 ## disable checks
-#openshift_disable_check=disk_availability,docker_storage,memory_availability,docker_image_availability,package_availability,package_version
+openshift_disable_check=disk_availability,docker_storage,memory_availability,docker_image_availability,package_availability,package_version
 
 ## cluster stuff (uncomment for multi-master mode)
 #openshift_master_cluster_method=native
 #openshift_master_cluster_hostname=api.$ROOT_DOMAIN
 #openshift_master_cluster_public_hostname=console.$ROOT_DOMAIN
-
+oreg_url=registry.access.redhat.com/openshift3/ose-${component}:${version}
+openshift_examples_modify_imagestreams=true
 ## release ver
 #openshift_release=v3.9.27
 #openshift_image_tag=$OCP_VER
@@ -29,6 +34,18 @@ openshift_deployment_type=openshift-enterprise
 ## enable ntp
 #openshift_clock_enabled=false
 
+## set the router region
+openshift_hosted_manage_router=true
+openshift_hosted_router_selector="region=masters"
+openshift_hosted_registry_selector="region=masters"
+
+#
+# web console
+#
+openshift_web_console_nodeselector={'region': 'masters'}
+
+## domain stuff
+openshift_master_default_subdomain=apps.ocphome.home
 ## disable template imports
 openshift_install_examples=true
 
@@ -41,7 +58,10 @@ ansible_ssh_user=root
 ## authentication stuff
 ## htpasswd file auth
 openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider', 'filename': '/etc/origin/master/htpasswd'}]
-#openshift_master_htpasswd_users={'testuser':'\$apr1\$azF6n0fo\$khEfbcGI6TiDYtv3gaOLm0'}
+
+# CNS storage for applications
+#openshift_storage_glusterfs_namespace=app-storage
+#openshift_storage_glusterfs_block_deploy=false
 
 # everything on cns
 openshift_storage_glusterfs_namespace=glusterfs
@@ -50,12 +70,11 @@ openshift_storage_glusterfs_heketi_wipe=true
 openshift_storage_glusterfs_wipe=true
 openshift_storage_glusterfs_storageclass_default=true
 openshift_storage_glusterfs_block_storageclass=true
-openshift_storage_glusterfs_block_host_vol_size=25
+openshift_storage_glusterfs_block_host_vol_size=50
 ## registry
 openshift_hosted_manage_registry=true
 openshift_hosted_registry_storage_kind=glusterfs
-openshift_hosted_registry_storage_volume_size=10Gi
-openshift_hosted_registry_selector='region=infra'
+openshift_hosted_registry_storage_volume_size=25Gi
 openshift_master_dynamic_provisioning_enabled=true
 ## etcd
 openshift_hosted_etcd_storage_kind=dynamic
@@ -66,25 +85,22 @@ openshift_hosted_etcd_storage_volume_size=10Gi
 ansible_service_broker_local_registry_whitelist=['.*-apb$']
 ## logging
 openshift_logging_install_logging=true
-openshift_logging_es_pvc_dynamic=true
+#openshift_logging_es_pvc_dynamic=true
+openshift_logging_storage_kind=dynamic
 openshift_logging_es_pvc_size=10Gi
-openshift_logging_es_pvc_storage_class_name=glusterfs-storage-block
-openshift_logging_curator_nodeselector={'region':'infra'}
-openshift_logging_es_nodeselector={'region':'infra'}
-openshift_logging_kibana_nodeselector={'region':'infra'}
+#openshift_logging_es_pvc_storage_class_name=glusterfs-storage-block
+openshift_logging_image_version=v3.9.30
 #openshift_logging_es_memory_limit=4G
 ## legacy metrics
 openshift_metrics_install_metrics=true
-openshift_metrics_cassandra_storage_type=dynamic
+openshift_metrics_hawkular_hostname=hawkular.apps.ocphome.home
+#openshift_metrics_cassandra_storage_type=dynamic
+openshift_metrics_storage_kind=dynamic
 openshift_metrics_cassandra_pvc_size=10Gi
-openshift_metrics_cassanda_pvc_storage_class_name=glusterfs-storage-block
-openshift_metrics_hawkular_nodeselector={'region':'infra'}
-openshift_metrics_heapster_nodeselector={'region':'infra'}
-openshift_metrics_cassandra_nodeselector={'region':'infra'}
+#openshift_metrics_cassandra_pvc_storage_class_name=glusterfs-storage-block
 ## prometheus metrics and alerting
 openshift_hosted_prometheus_deploy=true
 openshift_prometheus_namespace=openshift-metrics
-openshift_prometheus_node_selector={'region':'infra'}
 openshift_prometheus_storage_access_modes=['ReadWriteOnce']
 openshift_prometheus_storage_volume_name=prometheus
 openshift_prometheus_storage_volume_size=10Gi
@@ -100,41 +116,32 @@ openshift_prometheus_alertbuffer_storage_volume_name=prometheus-alertbuffer
 openshift_prometheus_alertbuffer_storage_volume_size=10Gi
 openshift_prometheus_alertbuffer_storage_type='pvc'
 openshift_prometheus_alertbuffer_sc_name="glusterfs-storage"
-
-## CNS for apps only (no infra)
-#openshift_storage_glusterfs_namespace=app-storage  
-#openshift_storage_glusterfs_storageclass=true
-
-## set the router region
-openshift_hosted_manage_router=true
-openshift_hosted_router_selector=region=masters
-
-## domain stuff
-openshift_master_default_subdomain=apps.ocphome.home
-
+# Enable cockpit
+osm_use_cockpit=true
+#
+# Set cockpit plugins
+osm_cockpit_plugins=['cockpit-kubernetes']
 ## load balancer
 #[lb]
 #ocplb.ocphome.home
 
+# Configure SDN cluster network
+osm_cluster_network_cidr=10.55.0.0/14
+openshift_portal_net=172.122.0.0/16
+
 ## host group for etcd (uncomment for multi-master)
 [etcd]
 ocpmaster.ocphome.home
-#master02.$ROOT_DOMAIN
-#master03.$ROOT_DOMAIN
 
 ## host group for masters
 [masters]
 ocpmaster.ocphome.home
-#master02.$ROOT_DOMAIN
-#master03.$ROOT_DOMAIN
-## if you want to change the console's hostname on a single master cluster
-## openshift_public_hostname=console.openshiftdemo.com
 
 [nodes]
-ocpmaster.ocphome.home openshift_node_labels="{'region': 'masters', 'zone': 'a', 'role': 'masters'}" openshift_schedulable=true
-ocpnode1.ocphome.home openshift_node_labels="{'region': 'infra', 'zone': 'a', 'role': 'infra'}" openshift_schedulable=true
-ocpnode2.ocphome.home openshift_node_labels="{'region': 'infra', 'zone': 'a', 'role': 'infra'}" openshift_schedulable=true
-ocpnode3.ocphome.home openshift_node_labels="{'region': 'infra', 'zone': 'a', 'role': 'infra'}" openshift_schedulable=true
+ocpmaster.ocphome.home openshift_node_labels="{'region': 'masters'}" openshift_schedulable=true
+ocpnode1.ocphome.home openshift_node_labels="{'region': 'infra'}" openshift_schedulable=true
+ocpnode2.ocphome.home openshift_node_labels="{'region': 'infra'}" openshift_schedulable=true
+ocpnode3.ocphome.home openshift_node_labels="{'region': 'infra'}" openshift_schedulable=true
 
 [glusterfs]
 ocpnode1.ocphome.home glusterfs_devices='[ "/dev/sdb" ]'
